@@ -3,72 +3,70 @@ import subprocess
 import time
 from RPLCD.i2c import CharLCD
 
-class ProLCDNIDS:
+class AllPacketsNIDS:
     def __init__(self):
         self.lcd = CharLCD('PCF8574', 0x27)
-        self.count = 0
+        self.total_packets = 0
         self.start_time = time.time()
-        self.show_welcome()
-        print("✓ PROFESSIONAL NIDS READY")
-    
-    def show_welcome(self):
         self.lcd.clear()
-        self.lcd.write_string("NETWORK IDS")
+        self.lcd.write_string("PACKET COUNTER")
         time.sleep(1)
         self.lcd.clear()
-        self.lcd.write_string("MONITORING...")
+        self.lcd.write_string("INITIALIZING...")
         time.sleep(1)
+        print("PROFESSIONAL PACKET COUNTER READY")
     
-    def show_status(self, pings):
+    def show_status(self, total, rate):
         self.lcd.clear()
-        # Line 1: Status + Count
-        self.lcd.write_string(f"PINGS: {pings:2d}")
+        # Line 1: TOTAL packets
+        self.lcd.write_string(f"TOTAL: {total:5d}")
         
-        # Line 2: Progress bar (0-16 chars)
-        bar_length = min(pings, 16)
-        bar = "#" * bar_length + " " * (16 - bar_length)
+        # Line 2: RATE packets/second
         self.lcd.cursor_pos = (1, 0)
-        self.lcd.write_string(bar)
+        self.lcd.write_string(f"RATE: {rate:3d}/s")
         
-        print(f"STATUS: {pings} pings | {'#' * bar_length}{' ' * (16 - bar_length)}")
-    
-    def show_attack(self, pings):
-        self.lcd.clear()
-        # Line 1: BIG ALERT
-        self.lcd.write_string("*** ATTACK! ***")
-        
-        # Line 2: Count + Time
         runtime = int(time.time() - self.start_time)
-        self.lcd.cursor_pos = (1, 0)
-        self.lcd.write_string(f"{pings}pkts {runtime}s")
-        
-        print(f"*** SECURITY ALERT! ***")
-        print(f"FLOOD: {pings} packets in {runtime} seconds")
+        print(f"TOTAL: {total} packets | RATE: {rate} pps | TIME: {runtime}s")
     
-    def scan(self):
-        # Capture 4 seconds of traffic
+    def show_alert(self, total, rate):
+        self.lcd.clear()
+        # Line 1: ALERT
+        self.lcd.write_string("TRAFFIC ALERT!")
+        
+        # Line 2: Total + Rate
+        self.lcd.cursor_pos = (1, 0)
+        self.lcd.write_string(f"{total:5d} {rate:3d}/s")
+        
+        print(f"ALERT: {total} packets at {rate} pps")
+    
+    def count_packets(self):
+        # COUNT ALL PACKETS (4 second capture)
         result = subprocess.run(
-            ['timeout', '4', 'tcpdump', '-i', 'any', 'icmp', '-n'],
+            ['timeout', '4', 'tcpdump', '-i', 'any', '-n', '-c', '500'],
             capture_output=True, text=True
         )
-        icmp_count = len([line for line in result.stdout.split('\n') if 'ICMP' in line])
-        return icmp_count
+        # Count ALL non-empty lines = ALL packets
+        packet_lines = [line for line in result.stdout.split('\n') if line.strip()]
+        return len(packet_lines)
     
     def run(self):
+        last_total = 0
         while True:
-            pings = self.scan()
-            self.count += pings
+            # Count packets in 4 seconds
+            new_packets = self.count_packets()
+            self.total_packets += new_packets
             
-            if self.count > 6:  # DETECTS FAST
-                self.show_attack(self.count)
-                print(f"🚨 INTRUSION DETECTED! {self.count} PINGS")
-                time.sleep(4)
-                self.count = 0
+            # Calculate rate (packets per second)
+            rate = new_packets // 4
+            
+            if rate > 25:  # ALERT THRESHOLD: 25+ pps
+                self.show_alert(self.total_packets, rate)
+                print(f"SECURITY ALERT: High traffic detected")
             else:
-                self.show_status(self.count)
+                self.show_status(self.total_packets, rate)
             
             time.sleep(1)
 
 if __name__ == "__main__":
-    nids = ProLCDNIDS()
+    nids = AllPacketsNIDS()
     nids.run()
