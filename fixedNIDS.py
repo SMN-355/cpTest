@@ -1,68 +1,48 @@
 #!/usr/bin/env python3
 import subprocess
 import time
-import re
-from collections import Counter
+from RPLCD.i2c import CharLCD
 
-class FixedNIDS:
+class LCDNIDS:
     def __init__(self):
-        self.ping_threshold = 50  # Detect ping flood
-        self.ping_count = 0
-        self.last_time = time.time()
-        
-    def capture_packets(self):
-        """Capture ICMP (ping) packets"""
-        try:
-            result = subprocess.run(
-                ['timeout', '3', 'tcpdump', '-i', 'wlan1', 'icmp', '-c', '100', '-n'],
-                capture_output=True, text=True
-            )
-            pings = len(re.findall(r'ICMP', result.stdout))
-            return pings
-        except:
-            return 0
+        # Initialize LCD1602 (address 0x27)
+        self.lcd = CharLCD('PCF8574', 0x27)
+        self.count = 0
+        self.lcd.clear()
+        self.lcd.write_string("NIDS READY")
+        print("✓ LCD NIDS READY")
+        time.sleep(2)
     
-    def detect_anomaly(self, pings):
-        current_time = time.time()
-        if current_time - self.last_time > 5:  # Reset every 5s
-            self.ping_count = 0
-            self.last_time = current_time
-            
-        self.ping_count += pings
-        
-        if self.ping_count > self.ping_threshold:
-            return f"PING FLOOD: {self.ping_count} packets!"
-        return False
+    def show(self, msg):
+        self.lcd.clear()
+        # Truncate to 16 characters
+        display_msg = msg[:16]
+        self.lcd.write_string(display_msg)
+        print(f"LCD: {display_msg}")
     
-    def update_oled(self, message):
-        try:
-            import board, busio, adafruit_ssd1306
-            i2c = busio.I2C(board.SCL, board.SDA)
-            oled = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c, addr=0x3C)
-            oled.fill(0)
-            oled.text(message, 0, 0, 1)
-            oled.show()
-            print(f"OLED: {message}")
-        except Exception as e:
-            print(f"OLED Error: {e}")
+    def scan(self):
+        result = subprocess.run(
+            ['timeout', '3', 'tcpdump', '-i', 'wlan1', 'icmp', '-c', '50'],
+            capture_output=True, text=True
+        )
+        return result.stdout.count('ICMP')
     
     def run(self):
-        print("=== FIXED NIDS STARTED ===")
         while True:
-            pings = self.capture_packets()
-            print(f"Pings captured: {pings}")
+            pings = self.scan()
+            self.count += pings
+            print(f"Pings: {self.count}")
             
-            anomaly = self.detect_anomaly(pings)
-            if anomaly:
-                print(f"*** {anomaly} ***")
-                self.update_oled(anomaly)
+            if self.count > 10:
+                self.show(f"ATTACK! {self.count}")
+                print("*** FLOOD DETECTED! ***")
+                time.sleep(3)
+                self.count = 0
             else:
-                status = f"Pings: {self.ping_count}"
-                print(status)
-                self.update_oled(status)
+                self.show(f"OK P:{self.count}")
             
-            time.sleep(2)
+            time.sleep(1)
 
 if __name__ == "__main__":
-    nids = FixedNIDS()
+    nids = LCDNIDS()
     nids.run()
