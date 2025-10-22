@@ -3,37 +3,44 @@ import subprocess
 import time
 from RPLCD.i2c import CharLCD
 
-class LCDNIDS:
+class FixedLCDNIDS:
     def __init__(self):
-        # Initialize LCD1602 (address 0x27)
         self.lcd = CharLCD('PCF8574', 0x27)
         self.count = 0
         self.lcd.clear()
-        self.lcd.write_string("NIDS READY")
-        print("✓ LCD NIDS READY")
+        self.lcd.write_string("NIDS START")
+        print("✓ FIXED NIDS READY")
         time.sleep(2)
     
     def show(self, msg):
         self.lcd.clear()
-        # Truncate to 16 characters
         display_msg = msg[:16]
         self.lcd.write_string(display_msg)
         print(f"LCD: {display_msg}")
     
     def scan(self):
-        result = subprocess.run(
-            ['timeout', '3', 'tcpdump', '-i', 'wlan1', 'icmp', '-c', '50'],
-            capture_output=True, text=True
-        )
-        return result.stdout.count('ICMP')
+        # FIXED: ANY interface + NO count limit + longer timeout
+        try:
+            result = subprocess.run(
+                ['timeout', '5', 'tcpdump', '-i', 'any', 'icmp', '-n'],
+                capture_output=True, text=True, check=False
+            )
+            # Count ALL ICMP lines
+            icmp_lines = [line for line in result.stdout.split('\n') if 'ICMP' in line]
+            count = len(icmp_lines)
+            print(f"DEBUG: Captured {count} ICMP packets")
+            return count
+        except Exception as e:
+            print(f"SCAN ERROR: {e}")
+            return 0
     
     def run(self):
         while True:
             pings = self.scan()
             self.count += pings
-            print(f"Pings: {self.count}")
+            print(f"TOTAL PINGS: {self.count}")
             
-            if self.count > 10:
+            if self.count > 5:  # LOWERED THRESHOLD
                 self.show(f"ATTACK! {self.count}")
                 print("*** FLOOD DETECTED! ***")
                 time.sleep(3)
@@ -41,8 +48,8 @@ class LCDNIDS:
             else:
                 self.show(f"OK P:{self.count}")
             
-            time.sleep(1)
+            time.sleep(2)
 
 if __name__ == "__main__":
-    nids = LCDNIDS()
+    nids = FixedLCDNIDS()
     nids.run()
