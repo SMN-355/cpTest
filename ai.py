@@ -68,7 +68,7 @@ class AI_NIDS:
 
     def show_status(self):
         self.lcd.clear()
-        self.lcd.write_string(f"Flows: {len(self.active_flows):<4} Pkts: {self.total_packets_processed:<6}")
+        self.lcd.write_string(f"Flows:{len(self.active_flows):<4} Pkts:{self.total_packets_processed:<6}")
         self.lcd.cursor_pos = (1, 0)
         self.lcd.write_string(f"Attacks: {self.total_attacks_detected:<4}")
         self.log(f"STATUS: Flows: {len(self.active_flows)} | Pkts: {self.total_packets_processed} | Alerts: {self.total_attacks_detected}")
@@ -211,7 +211,7 @@ class AI_NIDS:
         and the analyzer/display in the main thread.
         """
         self.log("Starting packet sniffer thread...")
-        sniffer_thread = threading.Thread(target=sniff, kwargs={'prn': self.process_packet, 'store': False, 'iface': 'any'})
+        sniffer_thread = threading.Thread(target=sniff, kwargs={'prn': self.process_packet, 'store': False, 'iface': 'wlan0'})
         sniffer_thread.daemon = True
         sniffer_thread.start()
 
