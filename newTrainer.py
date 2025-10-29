@@ -246,7 +246,7 @@ class AI_NIDS:
 
     def run(self):
         self.log("Starting packet sniffer thread...")
-        sniffer_thread = threading.Thread(target=sniff, kwargs={'prn': self.process_packet, 'store': False, 'iface': 'any'})
+        sniffer_thread = threading.Thread(target=sniff, kwargs={'prn': self.process_packet, 'store': False, 'iface': 'wlan0'})
         sniffer_thread.daemon = True
         sniffer_thread.start()
         
