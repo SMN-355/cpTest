@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>C9 TACTICAL COMMAND</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { background: #050505; color: #00ff41; font-family: 'Courier New', monospace; padding: 20px; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #00ff41; margin-bottom: 20px; }
+        
+        .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .panel { border: 1px solid #333; background: #0a0a0a; padding: 15px; margin-bottom: 20px; min-height: 300px; }
+        
+        .hidden { display: none !important; }
+        
+        .player-row { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; transition: opacity 0.3s; }
+        .player-row.dimmed { opacity: 0.1; filter: blur(2px); }
+        .player-row.highlight { border: 2px solid #00ff41; background: #0f1a0f; }
+        
+        .CRITICAL { color: red; font-weight: bold; animation: pulse 1s infinite; }
+        @keyframes pulse { 50% { opacity: 0.5; } }
+        
+        .cmd-log { font-size: 0.8em; color: cyan; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>C9 COMMAND // <span id="map-name">LOADING</span></h1>
+        <div class="cmd-log">LAST INPUT: <span id="last-cmd">NONE</span></div>
+    </div>
+
+    <div class="grid-layout">
+        <div id="main-display">
+            
+            <div id="view-overview" class="panel">
+                <h2>LIVE ROSTER INTEL</h2>
+                <div id="roster-list">Waiting for GRID data...</div>
+            </div>
+
+            <div id="view-stats" class="panel hidden">
+                <h2>ADVANCED ANALYTICS: C9 MOMENTUM</h2>
+                <p>Real-time Team K/D Ratio</p>
+                <div style="height: 250px; width: 100%;">
+                    <canvas id="kdChart"></canvas>
+                </div>
+            </div>
+            
+            <div id="view-bans" class="panel hidden">
+                <h2>PICK / BAN PHASE</h2>
+                <p>Recommending Ban: VIPER (Win rate 65%)</p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>FORENSICS LOG</h2>
+            <div id="event-logs" style="font-size: 0.9em; line-height: 1.4em;"></div>
+        </div>
+    </div>
+
+    <script>
+        let kdChart = null;
+
+        function initChart() {
+            const ctx = document.getElementById('kdChart').getContext('2d');
+            kdChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Cloud9 Team K/D',
+                        data: [],
+                        borderColor: '#00ff41',
+                        backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: '#333' },
+                            ticks: { color: '#00ff41' }
+                        },
+                        x: { 
+                            grid: { color: '#333' },
+                            ticks: { color: '#00ff41' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#fff' } }
+                    }
+                }
+            });
+        }
+
+        function updateDisplay() {
+            fetch('/api/sync')
+            .then(r => r.json())
+            .then(data => {
+                const game = data.game;
+                const view = data.view;
+                
+                document.getElementById('map-name').innerText = game.map;
+                document.getElementById('last-cmd').innerText = view.last_command;
+                document.getElementById('view-overview').classList.toggle('hidden', view.active_view !== 'overview');
+                document.getElementById('view-stats').classList.toggle('hidden', view.active_view !== 'statistics');
+                document.getElementById('view-bans').classList.toggle('hidden', view.active_view !== 'ban_picks');
+
+                if (kdChart) {
+                    kdChart.data.labels = game.stats_history.labels;
+                    kdChart.data.datasets[0].data = game.stats_history.c9_kd;
+                    kdChart.update();
+                }
+
+                const rosterDiv = document.getElementById('roster-list');
+                rosterDiv.innerHTML = ""; 
+                const roles = ['Top', 'Jungle', 'Mid', 'Bot', 'Support'];
+                let i = 0;
+
+                for (const [name, stats] of Object.entries(game.roster)) {
+                    const role = roles[i % 5]; i++;
+                    const div = document.createElement('div');
+                    div.className = 'player-row';
+                    
+                    if (view.active_filter !== 'ALL' && view.active_filter !== role) {
+                        div.classList.add('dimmed');
+                    } else if (view.active_filter === role) {
+                        div.classList.add('highlight');
+                    }
+
+                    div.innerHTML = `
+                        <span>[${role.toUpperCase()}] ${name}</span>
+                        <span>Kills: ${stats.kills}</span>
+                        <span class="${stats.risk}">THREAT: ${stats.risk}</span>
+                    `;
+                    rosterDiv.appendChild(div);
+                }
+
+                const logsDiv = document.getElementById('event-logs');
+                logsDiv.innerHTML = game.events.map(e => `<div>[${e.time}] ${e.msg}</div>`).join('');
+            });
+        }
+
+        initChart();
+        setInterval(updateDisplay, 1000);
+    </script>
+</body>
+</html>
