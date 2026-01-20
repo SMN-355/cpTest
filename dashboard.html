@@ -28,7 +28,13 @@
 <body>
     <div class="header">
         <h1>C9 COMMAND // <span id="map-name">LOADING</span></h1>
-        <div class="cmd-log">LAST INPUT: <span id="last-cmd">NONE</span></div>
+        <div style="text-align: right;">
+            <div class="cmd-log">LAST INPUT: <span id="last-cmd">NONE</span></div>
+            <div style="margin-top: 5px;">
+                SOURCE: <span id="data-source" style="font-weight:bold; color:gray;">CONNECTING...</span>
+                <span id="ping-indicator" style="color: #00ff41;">●</span>
+            </div>
+        </div>
     </div>
 
     <div class="grid-layout">
@@ -83,7 +89,8 @@
                     scales: {
                         y: { grid: { color: '#333' }, ticks: { color: '#00ff41' } },
                         x: { grid: { color: '#333' }, ticks: { color: '#00ff41' } }
-                    }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
                 }
             });
         }
@@ -96,9 +103,16 @@
                 const game = data.game;
                 const view = data.view;
                 
-                // 1. Update Header
+                // 1. Update Header & Status
                 document.getElementById('map-name').innerText = game.map;
                 document.getElementById('last-cmd').innerText = view.last_command;
+                
+                const sourceLabel = document.getElementById('data-source');
+                if (game.map === "SIMULATION FEED") {
+                    sourceLabel.innerText = "SIMULATION"; sourceLabel.style.color = "orange";
+                } else {
+                    sourceLabel.innerText = "LIVE GRID API"; sourceLabel.style.color = "#00ff41";
+                }
 
                 // 2. Handle View Switching
                 document.getElementById('view-overview').classList.toggle('hidden', view.active_view !== 'overview');
@@ -112,7 +126,7 @@
                     kdChart.update();
                 }
 
-                // 4. Populate Roster (The Corrected Filter Logic)
+                // 4. Populate Roster (FIXED LOGIC)
                 const rosterDiv = document.getElementById('roster-list');
                 rosterDiv.innerHTML = ""; 
 
@@ -123,11 +137,23 @@
                     
                     const activeFilter = view.active_filter.toUpperCase();
                     const currentRole = role.toUpperCase();
+                    const activeAlert = view.active_alert;
 
+                    // Filter Logic
                     if (activeFilter !== 'ALL' && activeFilter !== currentRole) {
                         div.classList.add('dimmed');
                     } else if (activeFilter === currentRole) {
                         div.classList.add('highlight');
+                    }
+
+                    // Alert Logic (Fixes TEAM/OPP Buttons)
+                    if (activeAlert === 'C9' && stats.risk === 'LOW') {
+                        div.style.border = "2px solid cyan";
+                        div.style.backgroundColor = "rgba(0, 255, 255, 0.1)";
+                    }
+                    if (activeAlert === 'Enemy_Carry' && stats.risk === 'CRITICAL') {
+                        div.style.border = "2px solid red";
+                        div.classList.add('CRITICAL');
                     }
 
                     div.innerHTML = `
