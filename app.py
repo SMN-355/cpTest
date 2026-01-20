@@ -5,14 +5,17 @@ import random
 from flask import Flask, render_template, jsonify, request
 import websocket
 
-GRID_API_KEY = ""
+# --- CONFIGURATION ---
+# Set this to True to guarantee the demo works without live data
+SIMULATION_MODE = True 
+
+GRID_API_KEY = "dNPeu7trUmtvqhFCsnQG8I38u9uVVwaeogiQP7l4"
 SERIES_ID = "28"
 GRID_WS_URL = f"wss://api.grid.gg/live-data-feed/series/{SERIES_ID}?key={GRID_API_KEY}"
 
-SIMULATION_MODE = True 
-
 app = Flask(__name__)
 
+# --- SHARED STATE ---
 game_data = {
     "map": "OFFLINE",
     "score_c9": 0,
@@ -29,9 +32,11 @@ game_data = {
 view_state = {
     "active_view": "overview",
     "active_filter": "ALL",
-    "last_command": "None"
+    "last_command": "None",
+    "hardware_status": "ONLINE"
 }
 
+# --- REPLAY ENGINE ---
 def run_simulation():
     print(">>> STARTING SIMULATION MODE")
     try:
@@ -45,6 +50,7 @@ def run_simulation():
         game_data['map'] = "SIMULATION FEED"
         game_data['events'] = []
         game_data['roster'] = {}
+        # Reset graph data on loop
         game_data['stats_history']['labels'] = []
         game_data['stats_history']['c9_kd'] = []
         
@@ -61,18 +67,25 @@ def run_simulation():
                     msg = f"KILL: {step['actor']} -> {step['target']}"
                     game_data['events'].insert(0, {"time": current_time, "msg": msg})
                     
+                    # Update Roster
                     actor = step['actor']
                     if actor not in game_data['roster']:
-                        game_data['roster'][actor] = {"kills": 0, "role": step.get('role', 'Unknown'), "risk": "LOW"}
+                        game_data['roster'][actor] = {
+                            "kills": 0, 
+                            "role": step.get('role', 'Unknown'), 
+                            "risk": "LOW"
+                        }
                     
                     game_data['roster'][actor]['kills'] += 1
                     
+                    # Graph Logic (Simulated Team Momentum)
                     c9_kills_total += 1
-                    
                     kd_ratio = c9_kills_total / (c9_deaths_total if c9_deaths_total > 0 else 1)
+                    
                     game_data['stats_history']['labels'].append(current_time)
                     game_data['stats_history']['c9_kd'].append(round(kd_ratio, 2))
                     
+                    # Trim graph to last 15 points
                     if len(game_data['stats_history']['labels']) > 15:
                         game_data['stats_history']['labels'].pop(0)
                         game_data['stats_history']['c9_kd'].pop(0)
@@ -83,6 +96,7 @@ def run_simulation():
             elif step['type'] == 'state':
                 game_data['map'] = step['map']
 
+# --- FLASK ROUTES ---
 @app.route('/')
 def index():
     return render_template('dashboard.html')
@@ -90,12 +104,18 @@ def index():
 @app.route('/api/telemetry', methods=['POST'])
 def receive_command():
     cmd = request.json
+    
     if cmd['type'] == 'filter':
         view_state['active_filter'] = cmd['target']
         view_state['active_view'] = 'overview'
+        
     elif cmd['type'] == 'view':
         view_state['active_view'] = cmd['target']
         view_state['active_filter'] = 'ALL'
+        
+    elif cmd['type'] == 'alert':
+        # Used for Team/Opponent Highlighting
+        pass
     
     view_state['last_command'] = f"{cmd.get('key_name', 'CMD')} -> {cmd['type']}"
     return jsonify({"status": "ACK"})
