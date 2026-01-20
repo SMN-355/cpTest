@@ -14,9 +14,12 @@
         .hidden { display: none !important; }
         
         /* Player Rows */
-        .player-row { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; transition: opacity 0.3s; }
-        .player-row.dimmed { opacity: 0.1; filter: blur(2px); }
-        .player-row.highlight { border: 2px solid #00ff41; background: #0f1a0f; }
+        .player-row { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; transition: all 0.3s; }
+        
+        /* FIX: Removed blur, set opacity to 0.4 for readable dimming */
+        .player-row.dimmed { opacity: 0.4; filter: none; }
+        
+        .player-row.highlight { border: 2px solid #00ff41; background: #0f1a0f; opacity: 1.0; }
         
         /* Threat Colors */
         .CRITICAL { color: red; font-weight: bold; animation: pulse 1s infinite; }
@@ -103,7 +106,7 @@
                 const game = data.game;
                 const view = data.view;
                 
-                // 1. Update Header & Status
+                // 1. Update Header
                 document.getElementById('map-name').innerText = game.map;
                 document.getElementById('last-cmd').innerText = view.last_command;
                 
@@ -126,42 +129,55 @@
                     kdChart.update();
                 }
 
-                // 4. Populate Roster (FIXED LOGIC)
+                // 4. Populate Roster
                 const rosterDiv = document.getElementById('roster-list');
-                rosterDiv.innerHTML = ""; 
-
-                for (const [name, stats] of Object.entries(game.roster)) {
-                    const role = stats.role || "Unknown";
-                    const div = document.createElement('div');
-                    div.className = 'player-row';
+                // Don't clear if empty to prevent blink, unless strictly necessary
+                if (Object.keys(game.roster).length > 0) {
+                    rosterDiv.innerHTML = ""; 
                     
-                    const activeFilter = view.active_filter.toUpperCase();
-                    const currentRole = role.toUpperCase();
-                    const activeAlert = view.active_alert;
+                    // Sort order (Top -> Jungle -> Mid -> Bot -> Support)
+                    const roleOrder = ["TOP", "JUNGLE", "MID", "BOT", "SUPPORT", "UNKNOWN"];
+                    const sortedRoster = Object.entries(game.roster).sort((a, b) => {
+                        const rA = (a[1].role || "Unknown").toUpperCase();
+                        const rB = (b[1].role || "Unknown").toUpperCase();
+                        return roleOrder.indexOf(rA) - roleOrder.indexOf(rB);
+                    });
 
-                    // Filter Logic
-                    if (activeFilter !== 'ALL' && activeFilter !== currentRole) {
-                        div.classList.add('dimmed');
-                    } else if (activeFilter === currentRole) {
-                        div.classList.add('highlight');
-                    }
+                    for (const [name, stats] of sortedRoster) {
+                        const role = stats.role || "Unknown";
+                        const div = document.createElement('div');
+                        div.className = 'player-row';
+                        
+                        const activeFilter = view.active_filter.toUpperCase();
+                        const currentRole = role.toUpperCase();
+                        const activeAlert = view.active_alert;
 
-                    // Alert Logic (Fixes TEAM/OPP Buttons)
-                    if (activeAlert === 'C9' && stats.risk === 'LOW') {
-                        div.style.border = "2px solid cyan";
-                        div.style.backgroundColor = "rgba(0, 255, 255, 0.1)";
-                    }
-                    if (activeAlert === 'Enemy_Carry' && stats.risk === 'CRITICAL') {
-                        div.style.border = "2px solid red";
-                        div.classList.add('CRITICAL');
-                    }
+                        // FILTER LOGIC
+                        if (activeFilter !== 'ALL' && activeFilter !== currentRole) {
+                            div.classList.add('dimmed');
+                        } else if (activeFilter === currentRole) {
+                            div.classList.add('highlight');
+                        }
 
-                    div.innerHTML = `
-                        <span style="width: 100px;">[${role}]</span>
-                        <span style="font-weight:bold; color:white;">${name}</span>
-                        <span>Kills: ${stats.kills}</span>
-                    `;
-                    rosterDiv.appendChild(div);
+                        // ALERT LOGIC
+                        // Highlight TEAM (C9)
+                        if (activeAlert === 'C9' && stats.risk === 'LOW') {
+                             div.style.border = "2px solid cyan";
+                             div.style.boxShadow = "0 0 10px cyan";
+                        }
+                        // Highlight ENEMY (OPP1)
+                        if (activeAlert === 'Enemy_Carry' && stats.risk === 'CRITICAL') {
+                             div.style.border = "2px solid red";
+                             div.classList.add('CRITICAL');
+                        }
+
+                        div.innerHTML = `
+                            <span style="width: 100px;">[${role}]</span>
+                            <span style="font-weight:bold; color:white;">${name}</span>
+                            <span>Kills: ${stats.kills}</span>
+                        `;
+                        rosterDiv.appendChild(div);
+                    }
                 }
 
                 // 5. Update Logs
