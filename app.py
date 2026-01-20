@@ -1,14 +1,12 @@
+
 import threading
 import json
 import time
 import random
 from flask import Flask, render_template, jsonify, request
-import websocket
 
 # --- CONFIGURATION ---
-# Set this to True to guarantee the demo works without live data
-SIMULATION_MODE = True 
-
+SIMULATION_MODE = False  # Set to True for the video demo
 GRID_API_KEY = "dNPeu7trUmtvqhFCsnQG8I38u9uVVwaeogiQP7l4"
 SERIES_ID = "28"
 GRID_WS_URL = f"wss://api.grid.gg/live-data-feed/series/{SERIES_ID}?key={GRID_API_KEY}"
@@ -32,6 +30,7 @@ game_data = {
 view_state = {
     "active_view": "overview",
     "active_filter": "ALL",
+    "active_alert": None,  # Stores 'C9' or 'Enemy_Carry'
     "last_command": "None",
     "hardware_status": "ONLINE"
 }
@@ -47,10 +46,10 @@ def run_simulation():
         return
 
     while True:
+        # Reset Game State on Loop
         game_data['map'] = "SIMULATION FEED"
         game_data['events'] = []
         game_data['roster'] = {}
-        # Reset graph data on loop
         game_data['stats_history']['labels'] = []
         game_data['stats_history']['c9_kd'] = []
         
@@ -104,20 +103,24 @@ def index():
 @app.route('/api/telemetry', methods=['POST'])
 def receive_command():
     cmd = request.json
+    view_state['last_command'] = f"{cmd.get('key_name', 'CMD')} -> {cmd['type']}"
     
     if cmd['type'] == 'filter':
         view_state['active_filter'] = cmd['target']
         view_state['active_view'] = 'overview'
+        view_state['active_alert'] = None # Clear alerts when filtering
         
     elif cmd['type'] == 'view':
         view_state['active_view'] = cmd['target']
         view_state['active_filter'] = 'ALL'
+        view_state['active_alert'] = None
         
     elif cmd['type'] == 'alert':
-        # Used for Team/Opponent Highlighting
-        pass
-    
-    view_state['last_command'] = f"{cmd.get('key_name', 'CMD')} -> {cmd['type']}"
+        view_state['active_alert'] = cmd['target']
+        # If focusing on team, reset filters to show everyone
+        if cmd['target'] == 'C9':
+            view_state['active_filter'] = 'ALL'
+            
     return jsonify({"status": "ACK"})
 
 @app.route('/api/sync')
