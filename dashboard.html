@@ -13,10 +13,12 @@
         
         .hidden { display: none !important; }
         
+        /* Player Rows */
         .player-row { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; transition: opacity 0.3s; }
         .player-row.dimmed { opacity: 0.1; filter: blur(2px); }
         .player-row.highlight { border: 2px solid #00ff41; background: #0f1a0f; }
         
+        /* Threat Colors */
         .CRITICAL { color: red; font-weight: bold; animation: pulse 1s infinite; }
         @keyframes pulse { 50% { opacity: 0.5; } }
         
@@ -39,7 +41,6 @@
 
             <div id="view-stats" class="panel hidden">
                 <h2>ADVANCED ANALYTICS: C9 MOMENTUM</h2>
-                <p>Real-time Team K/D Ratio</p>
                 <div style="height: 250px; width: 100%;">
                     <canvas id="kdChart"></canvas>
                 </div>
@@ -58,8 +59,8 @@
     </div>
 
     <script>
+        // --- CHART SETUP ---
         let kdChart = null;
-
         function initChart() {
             const ctx = document.getElementById('kdChart').getContext('2d');
             kdChart = new Chart(ctx, {
@@ -67,7 +68,7 @@
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Cloud9 Team K/D',
+                        label: 'Team K/D Ratio',
                         data: [],
                         borderColor: '#00ff41',
                         backgroundColor: 'rgba(0, 255, 65, 0.1)',
@@ -80,23 +81,14 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { 
-                            beginAtZero: true, 
-                            grid: { color: '#333' },
-                            ticks: { color: '#00ff41' }
-                        },
-                        x: { 
-                            grid: { color: '#333' },
-                            ticks: { color: '#00ff41' }
-                        }
-                    },
-                    plugins: {
-                        legend: { labels: { color: '#fff' } }
+                        y: { grid: { color: '#333' }, ticks: { color: '#00ff41' } },
+                        x: { grid: { color: '#333' }, ticks: { color: '#00ff41' } }
                     }
                 }
             });
         }
 
+        // --- MAIN UPDATE LOOP ---
         function updateDisplay() {
             fetch('/api/sync')
             .then(r => r.json())
@@ -104,42 +96,49 @@
                 const game = data.game;
                 const view = data.view;
                 
+                // 1. Update Header
                 document.getElementById('map-name').innerText = game.map;
                 document.getElementById('last-cmd').innerText = view.last_command;
+
+                // 2. Handle View Switching
                 document.getElementById('view-overview').classList.toggle('hidden', view.active_view !== 'overview');
                 document.getElementById('view-stats').classList.toggle('hidden', view.active_view !== 'statistics');
                 document.getElementById('view-bans').classList.toggle('hidden', view.active_view !== 'ban_picks');
 
+                // 3. Update Chart
                 if (kdChart) {
                     kdChart.data.labels = game.stats_history.labels;
                     kdChart.data.datasets[0].data = game.stats_history.c9_kd;
                     kdChart.update();
                 }
 
+                // 4. Populate Roster (The Corrected Filter Logic)
                 const rosterDiv = document.getElementById('roster-list');
                 rosterDiv.innerHTML = ""; 
-                const roles = ['Top', 'Jungle', 'Mid', 'Bot', 'Support'];
-                let i = 0;
 
                 for (const [name, stats] of Object.entries(game.roster)) {
-                    const role = roles[i % 5]; i++;
+                    const role = stats.role || "Unknown";
                     const div = document.createElement('div');
                     div.className = 'player-row';
                     
-                    if (view.active_filter !== 'ALL' && view.active_filter !== role) {
+                    const activeFilter = view.active_filter.toUpperCase();
+                    const currentRole = role.toUpperCase();
+
+                    if (activeFilter !== 'ALL' && activeFilter !== currentRole) {
                         div.classList.add('dimmed');
-                    } else if (view.active_filter === role) {
+                    } else if (activeFilter === currentRole) {
                         div.classList.add('highlight');
                     }
 
                     div.innerHTML = `
-                        <span>[${role.toUpperCase()}] ${name}</span>
+                        <span style="width: 100px;">[${role}]</span>
+                        <span style="font-weight:bold; color:white;">${name}</span>
                         <span>Kills: ${stats.kills}</span>
-                        <span class="${stats.risk}">THREAT: ${stats.risk}</span>
                     `;
                     rosterDiv.appendChild(div);
                 }
 
+                // 5. Update Logs
                 const logsDiv = document.getElementById('event-logs');
                 logsDiv.innerHTML = game.events.map(e => `<div>[${e.time}] ${e.msg}</div>`).join('');
             });
