@@ -1,14 +1,39 @@
 [
   {"delay": 1, "type": "event", "action": "series-start", "msg": "CONNECTED TO GRID SECURE FEED..."},
+  {"delay": 2, "type": "state", "map": "Ascent", "score_c9": 11, "score_opp": 11},
+  {"delay": 1, "type": "event", "action": "intel", "msg": "INTEL: Enemy presence detected B-Main"},
+  
+  {"delay": 2, "type": "event", "action": "killed", "actor": "Fudge", "target": "BrokenBlade", "role": "Top"},
+  {"delay": 1, "type": "event", "action": "intel", "msg": "ANALYSIS: 5v4 Advantage Cloud9"},
+  
+  {"delay": 3, "type": "event", "action": "killed", "actor": "Yike", "target": "Blaber", "role": "Jungle"},
+  {"delay": 1, "type": "event", "action": "killed", "actor": "Caps", "target": "Jojopyun", "role": "Mid"},
+  {"delay": 1, "type": "event", "action": "intel", "msg": "WARNING: Mid Lane Control Lost"},
+  
+  {"delay": 4, "type": "event", "action": "killed", "actor": "Berserker", "target": "Hans Sama", "role": "Bot"},
+  {"delay": 1, "type": "event", "action": "intel", "msg": "TRADE: Berserker re-established advantage"},
+  
+  {"delay": 3, "type": "event", "action": "bomb-planted", "msg": "ALERT: SPIKE PLANTED AT SITE B"},
+  {"delay": 1, "type": "state", "map": "Ascent", "score_c9": 11, "score_opp": 11},
+  
+  {"delay": 2, "type": "event", "action": "killed", "actor": "Vulcan", "target": "Mikyx", "role": "Support"},
+  {"delay": 2, "type": "event", "action": "killed", "actor": "Berserker", "target": "Caps", "role": "Bot"},
+  {"delay": 1, "type": "event", "action": "intel", "msg": "CRITICAL: Enemy Carry (Caps) Eliminated"},
+  
+  {"delay": 3, "type": "event", "action": "killed", "actor": "Yike", "target": "Fudge", "role": "Jungle"},
+  {"delay": 1, "type": "event", "action": "defuse-start", "msg": "C9 Vulcan is defusing..."},
+  {"delay": 2, "type": "event", "action": "defuse-stop", "msg": "Defuse halted! Enemy detected."},
+  
+  {"delay": 2, "type": "event", "action": "killed", "actor": "Vulcan", "target": "Yike", "role": "Support"},
+  {"delay": 1, "type": "event", "action": "intel", "msg": "ACE: Team Wipe Complete"},
+  
+  {"delay": 2, "type": "event", "action": "defuse-start", "msg": "C9 Vulcan is defusing..."},
+  {"delay": 4, "type": "event", "action": "round-win", "msg": "ROUND SECURED. CLOUD9 WINS."},
   {"delay": 2, "type": "state", "map": "Ascent", "score_c9": 12, "score_opp": 11},
   
-  {"delay": 1, "type": "event", "action": "killed", "actor": "Fudge", "target": "BrokenBlade", "role": "Top"},
+  {"delay": 5, "type": "event", "action": "round-start", "msg": "STARTING ROUND 24 (MATCH POINT)"},
+  {"delay": 1, "type": "event", "action": "intel", "msg": "ECONOMY: C9 Full Buy vs Enemy Eco"},
+  {"delay": 3, "type": "event", "action": "killed", "actor": "Blaber", "target": "BrokenBlade", "role": "Jungle"},
   {"delay": 1, "type": "event", "action": "killed", "actor": "Blaber", "target": "Yike", "role": "Jungle"},
-  {"delay": 1, "type": "event", "action": "killed", "actor": "Jojopyun", "target": "Caps", "role": "Mid"},
-  {"delay": 1, "type": "event", "action": "killed", "actor": "Berserker", "target": "Hans Sama", "role": "Bot"},
-  {"delay": 1, "type": "event", "action": "killed", "actor": "Vulcan", "target": "Mikyx", "role": "Support"},
-  
-  {"delay": 3, "type": "event", "action": "bomb-planted", "msg": "ALERT: SPIKE PLANTED AT SITE A"},
-  {"delay": 2, "type": "event", "action": "killed", "actor": "Blaber", "target": "Caps", "role": "Jungle"},
-  {"delay": 3, "type": "event", "action": "defuse-start", "msg": "C9 Vulcan is defusing..."}
+  {"delay": 1, "type": "event", "action": "intel", "msg": "MOMENTUM: Blaber on double kill streak"}
 ]
