@@ -1,0 +1,14 @@
+[
+  {"delay": 1, "type": "event", "action": "series-start", "msg": "CONNECTED TO GRID SECURE FEED..."},
+  {"delay": 2, "type": "state", "map": "Ascent", "score_c9": 12, "score_opp": 11},
+  
+  {"delay": 1, "type": "event", "action": "killed", "actor": "Fudge", "target": "BrokenBlade", "role": "Top"},
+  {"delay": 2, "type": "event", "action": "killed", "actor": "Blaber", "target": "Yike", "role": "Jungle"},
+  {"delay": 2, "type": "event", "action": "killed", "actor": "Jojopyun", "target": "Caps", "role": "Mid"},
+  {"delay": 1, "type": "event", "action": "killed", "actor": "Berserker", "target": "Hans Sama", "role": "Bot"},
+  {"delay": 1, "type": "event", "action": "killed", "actor": "Vulcan", "target": "Mikyx", "role": "Support"},
+  
+  {"delay": 3, "type": "event", "action": "bomb-planted", "msg": "ALERT: SPIKE PLANTED AT SITE A"},
+  {"delay": 2, "type": "event", "action": "killed", "actor": "Blaber", "target": "Caps", "role": "Jungle"},
+  {"delay": 3, "type": "event", "action": "defuse-start", "msg": "C9 Vulcan is defusing..."}
+]
