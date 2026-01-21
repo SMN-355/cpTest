@@ -9,13 +9,14 @@
         .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
         .panel { border: 1px solid #333; background: #0a0a0a; padding: 15px; margin-bottom: 20px; min-height: 300px; }
         .hidden { display: none !important; }
+        
         .player-row { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; opacity: 0.4; transition: all 0.3s; }
         .player-row.highlight { border: 2px solid #00ff41; background: #0f1a0f; opacity: 1.0; }
         .CRITICAL { color: red; font-weight: bold; animation: pulse 1s infinite; }
         
-        /* NEW: Leaderboard Style */
+        /* Leaderboard UI */
         .leaderboard-box { text-align: right; margin-right: 20px; }
-        .high-score { color: cyan; font-weight: bold; font-size: 1.2em; }
+        .high-score { color: cyan; font-weight: bold; font-size: 1.4em; }
         
         @keyframes pulse { 50% { opacity: 0.5; } }
     </style>
@@ -42,7 +43,7 @@
         <div id="main-display">
             <div id="view-overview" class="panel">
                 <h2 id="status-header">LIVE ROSTER INTEL</h2>
-                <div id="roster-list">Waiting for GRID data...</div>
+                <div id="roster-list">Waiting for Data...</div>
             </div>
 
             <div id="view-stats" class="panel hidden">
@@ -63,6 +64,7 @@
     </div>
 
     <script>
+        // Chart Setup
         let kdChart = null;
         function initChart() {
             const ctx = document.getElementById('kdChart').getContext('2d');
@@ -78,38 +80,51 @@
                 const game = data.game;
                 const view = data.view;
                 
-                // Update Header
+                // Update Connection Status
                 document.getElementById('map-name').innerText = game.map;
-                document.getElementById('last-cmd').innerText = view.last_command;
-                
-                // UPDATE LEADERBOARD
+                const sourceLabel = document.getElementById('data-source');
+                sourceLabel.innerText = view.connection_status;
+                if (view.connection_status.includes("SIMULATION")) sourceLabel.style.color = "orange";
+
+                // Update Leaderboard
                 document.getElementById('best-time').innerText = game.leaderboard.best_time + "s";
                 document.getElementById('last-time').innerText = game.leaderboard.last_time + "s";
+                document.getElementById('last-cmd').innerText = view.last_command;
 
-                // Handle Views & Alerts
+                // Handle Views
                 document.getElementById('view-overview').classList.toggle('hidden', view.active_view !== 'overview');
                 document.getElementById('view-stats').classList.toggle('hidden', view.active_view !== 'statistics');
                 document.getElementById('view-bans').classList.toggle('hidden', view.active_view !== 'ban_picks');
 
-                // ALERT LOGIC (Red/Cyan Screen)
+                // ALERT LOGIC (The Red/Cyan Screen)
                 const statusHeader = document.getElementById('status-header');
                 const mainPanel = document.getElementById('view-overview');
                 
                 if (view.active_alert === 'SPIKE_ARMED') {
                     mainPanel.style.border = "5px solid red";
-                    statusHeader.innerText = "⚠️ SPIKE PLANTED - DECODING REQUIRED ⚠️";
+                    mainPanel.style.boxShadow = "0 0 20px red";
+                    statusHeader.innerText = "⚠️ SPIKE PLANTED - DECODE REQUIRED ⚠️";
                     statusHeader.style.color = "red";
                 } else if (view.active_alert === 'SPIKE_DEFUSED') {
                     mainPanel.style.border = "5px solid cyan";
+                    mainPanel.style.boxShadow = "0 0 20px cyan";
                     statusHeader.innerText = "🏆 ROUND SECURED - BOMB DEFUSED 🏆";
                     statusHeader.style.color = "cyan";
                 } else {
                     mainPanel.style.border = "1px solid #333";
+                    mainPanel.style.boxShadow = "none";
                     statusHeader.innerText = "LIVE ROSTER INTEL";
                     statusHeader.style.color = "#00ff41";
                 }
 
-                // Roster Update (Same as before)
+                // Update Chart
+                if (kdChart && game.stats_history.labels.length > 0) {
+                    kdChart.data.labels = game.stats_history.labels;
+                    kdChart.data.datasets[0].data = game.stats_history.c9_kd;
+                    kdChart.update();
+                }
+
+                // Roster Update
                 const rosterDiv = document.getElementById('roster-list');
                 if (Object.keys(game.roster).length > 0) {
                     rosterDiv.innerHTML = ""; 
