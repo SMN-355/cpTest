@@ -3,36 +3,34 @@
 <head>
     <title>C9 TACTICAL COMMAND</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <style>
         body { background: #050505; color: #00ff41; font-family: 'Courier New', monospace; padding: 20px; }
         .header { display: flex; justify-content: space-between; border-bottom: 2px solid #00ff41; margin-bottom: 20px; }
-        
         .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
         .panel { border: 1px solid #333; background: #0a0a0a; padding: 15px; margin-bottom: 20px; min-height: 300px; }
-        
         .hidden { display: none !important; }
-        
-        /* Player Rows */
-        .player-row { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; transition: all 0.3s; }
-        
-        /* FIX: Removed blur, set opacity to 0.4 for readable dimming */
-        .player-row.dimmed { opacity: 0.4; filter: none; }
-        
+        .player-row { padding: 10px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; opacity: 0.4; transition: all 0.3s; }
         .player-row.highlight { border: 2px solid #00ff41; background: #0f1a0f; opacity: 1.0; }
-        
-        /* Threat Colors */
         .CRITICAL { color: red; font-weight: bold; animation: pulse 1s infinite; }
-        @keyframes pulse { 50% { opacity: 0.5; } }
         
-        .cmd-log { font-size: 0.8em; color: cyan; }
+        /* NEW: Leaderboard Style */
+        .leaderboard-box { text-align: right; margin-right: 20px; }
+        .high-score { color: cyan; font-weight: bold; font-size: 1.2em; }
+        
+        @keyframes pulse { 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>C9 COMMAND // <span id="map-name">LOADING</span></h1>
+        
+        <div class="leaderboard-box">
+            <div>FASTEST DEFUSE: <span id="best-time" class="high-score">--.--s</span></div>
+            <div style="font-size: 0.8em; color: gray;">LAST: <span id="last-time">--.--s</span></div>
+        </div>
+
         <div style="text-align: right;">
-            <div class="cmd-log">LAST INPUT: <span id="last-cmd">NONE</span></div>
+            <div style="font-size: 0.8em; color: cyan;">LAST INPUT: <span id="last-cmd">NONE</span></div>
             <div style="margin-top: 5px;">
                 SOURCE: <span id="data-source" style="font-weight:bold; color:gray;">CONNECTING...</span>
                 <span id="ping-indicator" style="color: #00ff41;">●</span>
@@ -42,17 +40,14 @@
 
     <div class="grid-layout">
         <div id="main-display">
-            
             <div id="view-overview" class="panel">
-                <h2>LIVE ROSTER INTEL</h2>
+                <h2 id="status-header">LIVE ROSTER INTEL</h2>
                 <div id="roster-list">Waiting for GRID data...</div>
             </div>
 
             <div id="view-stats" class="panel hidden">
-                <h2>ADVANCED ANALYTICS: C9 MOMENTUM</h2>
-                <div style="height: 250px; width: 100%;">
-                    <canvas id="kdChart"></canvas>
-                </div>
+                <h2>ADVANCED ANALYTICS</h2>
+                <div style="height: 250px; width: 100%;"><canvas id="kdChart"></canvas></div>
             </div>
             
             <div id="view-bans" class="panel hidden">
@@ -68,79 +63,59 @@
     </div>
 
     <script>
-        // --- CHART SETUP ---
         let kdChart = null;
         function initChart() {
             const ctx = document.getElementById('kdChart').getContext('2d');
             kdChart = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Team K/D Ratio',
-                        data: [],
-                        borderColor: '#00ff41',
-                        backgroundColor: 'rgba(0, 255, 65, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { grid: { color: '#333' }, ticks: { color: '#00ff41' } },
-                        x: { grid: { color: '#333' }, ticks: { color: '#00ff41' } }
-                    },
-                    plugins: { legend: { labels: { color: '#fff' } } }
-                }
+                data: { labels: [], datasets: [{ label: 'Momentum', data: [], borderColor: '#00ff41', tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: '#333' } } } }
             });
         }
 
-        // --- MAIN UPDATE LOOP ---
         function updateDisplay() {
-            fetch('/api/sync')
-            .then(r => r.json())
-            .then(data => {
+            fetch('/api/sync').then(r => r.json()).then(data => {
                 const game = data.game;
                 const view = data.view;
                 
-                // 1. Update Header
+                // Update Header
                 document.getElementById('map-name').innerText = game.map;
                 document.getElementById('last-cmd').innerText = view.last_command;
                 
-                const sourceLabel = document.getElementById('data-source');
-                if (game.map === "SIMULATION FEED") {
-                    sourceLabel.innerText = "SIMULATION"; sourceLabel.style.color = "orange";
-                } else {
-                    sourceLabel.innerText = "LIVE GRID API"; sourceLabel.style.color = "#00ff41";
-                }
+                // UPDATE LEADERBOARD
+                document.getElementById('best-time').innerText = game.leaderboard.best_time + "s";
+                document.getElementById('last-time').innerText = game.leaderboard.last_time + "s";
 
-                // 2. Handle View Switching
+                // Handle Views & Alerts
                 document.getElementById('view-overview').classList.toggle('hidden', view.active_view !== 'overview');
                 document.getElementById('view-stats').classList.toggle('hidden', view.active_view !== 'statistics');
                 document.getElementById('view-bans').classList.toggle('hidden', view.active_view !== 'ban_picks');
 
-                // 3. Update Chart
-                if (kdChart) {
-                    kdChart.data.labels = game.stats_history.labels;
-                    kdChart.data.datasets[0].data = game.stats_history.c9_kd;
-                    kdChart.update();
+                // ALERT LOGIC (Red/Cyan Screen)
+                const statusHeader = document.getElementById('status-header');
+                const mainPanel = document.getElementById('view-overview');
+                
+                if (view.active_alert === 'SPIKE_ARMED') {
+                    mainPanel.style.border = "5px solid red";
+                    statusHeader.innerText = "⚠️ SPIKE PLANTED - DECODING REQUIRED ⚠️";
+                    statusHeader.style.color = "red";
+                } else if (view.active_alert === 'SPIKE_DEFUSED') {
+                    mainPanel.style.border = "5px solid cyan";
+                    statusHeader.innerText = "🏆 ROUND SECURED - BOMB DEFUSED 🏆";
+                    statusHeader.style.color = "cyan";
+                } else {
+                    mainPanel.style.border = "1px solid #333";
+                    statusHeader.innerText = "LIVE ROSTER INTEL";
+                    statusHeader.style.color = "#00ff41";
                 }
 
-                // 4. Populate Roster
+                // Roster Update (Same as before)
                 const rosterDiv = document.getElementById('roster-list');
-                // Don't clear if empty to prevent blink, unless strictly necessary
                 if (Object.keys(game.roster).length > 0) {
                     rosterDiv.innerHTML = ""; 
-                    
-                    // Sort order (Top -> Jungle -> Mid -> Bot -> Support)
                     const roleOrder = ["TOP", "JUNGLE", "MID", "BOT", "SUPPORT", "UNKNOWN"];
                     const sortedRoster = Object.entries(game.roster).sort((a, b) => {
-                        const rA = (a[1].role || "Unknown").toUpperCase();
-                        const rB = (b[1].role || "Unknown").toUpperCase();
-                        return roleOrder.indexOf(rA) - roleOrder.indexOf(rB);
+                        return roleOrder.indexOf((a[1].role||"").toUpperCase()) - roleOrder.indexOf((b[1].role||"").toUpperCase());
                     });
 
                     for (const [name, stats] of sortedRoster) {
@@ -150,42 +125,22 @@
                         
                         const activeFilter = view.active_filter.toUpperCase();
                         const currentRole = role.toUpperCase();
-                        const activeAlert = view.active_alert;
+                        
+                        if (activeFilter !== 'ALL' && activeFilter !== currentRole) div.classList.add('dimmed');
+                        else if (activeFilter === currentRole) div.classList.add('highlight');
+                        
+                        if (view.active_alert === 'C9' && stats.risk === 'LOW') div.style.border = "2px solid cyan";
+                        if (view.active_alert === 'Enemy_Carry' && stats.risk === 'CRITICAL') div.style.border = "2px solid red";
 
-                        // FILTER LOGIC
-                        if (activeFilter !== 'ALL' && activeFilter !== currentRole) {
-                            div.classList.add('dimmed');
-                        } else if (activeFilter === currentRole) {
-                            div.classList.add('highlight');
-                        }
-
-                        // ALERT LOGIC
-                        // Highlight TEAM (C9)
-                        if (activeAlert === 'C9' && stats.risk === 'LOW') {
-                             div.style.border = "2px solid cyan";
-                             div.style.boxShadow = "0 0 10px cyan";
-                        }
-                        // Highlight ENEMY (OPP1)
-                        if (activeAlert === 'Enemy_Carry' && stats.risk === 'CRITICAL') {
-                             div.style.border = "2px solid red";
-                             div.classList.add('CRITICAL');
-                        }
-
-                        div.innerHTML = `
-                            <span style="width: 100px;">[${role}]</span>
-                            <span style="font-weight:bold; color:white;">${name}</span>
-                            <span>Kills: ${stats.kills}</span>
-                        `;
+                        div.innerHTML = `<span style="width:100px;">[${role}]</span><span style="font-weight:bold;color:white;">${name}</span><span>Kills: ${stats.kills}</span>`;
                         rosterDiv.appendChild(div);
                     }
                 }
-
-                // 5. Update Logs
-                const logsDiv = document.getElementById('event-logs');
-                logsDiv.innerHTML = game.events.map(e => `<div>[${e.time}] ${e.msg}</div>`).join('');
+                
+                // Logs
+                document.getElementById('event-logs').innerHTML = game.events.map(e => `<div>[${e.time}] ${e.msg}</div>`).join('');
             });
         }
-
         initChart();
         setInterval(updateDisplay, 1000);
     </script>
